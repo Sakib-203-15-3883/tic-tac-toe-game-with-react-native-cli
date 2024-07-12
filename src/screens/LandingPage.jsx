@@ -1,12 +1,13 @@
-/* eslint-disable prettier/prettier */
-import React, {useState, useEffect} from 'react';
+import React, { useState, useEffect } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Grid from '../components/Grid';
 import StatusBar from '../components/StatusBar';
 import Button from '../components/Button';
 
-import {players, status} from '../utils/constants';
-import {buildGrid, checkWinner} from '../utils/utils';
+import { InterstitialAd, AdEventType, TestIds } from 'react-native-google-mobile-ads';
+
+import { players, status } from '../utils/constants';
+import { buildGrid, checkWinner } from '../utils/utils';
 
 // Initial state of the game
 const initialState = {
@@ -20,6 +21,13 @@ const LandingPage = () => {
   const [gridElements, setGridElements] = useState(initialState.gridElements);
   const [isPlayerA, setIsPlayerA] = useState(initialState.isPlayerA);
   const [gameState, setGameState] = useState(initialState.gameState);
+  const [completedGames, setCompletedGames] = useState(0); // State to track completed games
+
+  const adUnitId = __DEV__ ? TestIds.INTERSTITIAL : 'ca-app-pub-8504264785596008~2142895997';
+
+const interstitial = InterstitialAd.createForAdRequest(adUnitId, {
+  keywords: ['fashion', 'clothing'],
+});
 
   // Functions
   // Replay game
@@ -28,6 +36,9 @@ const LandingPage = () => {
     setGridElements(initialState.gridElements);
     setIsPlayerA(initialState.isPlayerA);
     setGameState(initialState.gameState);
+
+    // Increment completed games count
+    setCompletedGames(prev => prev + 1);
   };
 
   useEffect(() => {
@@ -42,7 +53,7 @@ const LandingPage = () => {
         };
       });
 
-      setGridElements(elements.map(element => ({...element, isFilled: true})));
+      setGridElements(elements.map(element => ({ ...element, isFilled: true })));
     };
 
     // Check if the game is draw
@@ -53,7 +64,7 @@ const LandingPage = () => {
     };
 
     if (gameState === status.PLAYING) {
-      const {winner, winningMatrix} = checkWinner(gridElements);
+      const { winner, winningMatrix } = checkWinner(gridElements);
       winner ? winning(winningMatrix) : checkIfDraw();
     }
   }, [gridElements, gameState]);
@@ -86,18 +97,25 @@ const LandingPage = () => {
     setIsPlayerA(!isPlayerA);
   };
 
+  useEffect(() => {
+    if (completedGames > 0 && completedGames % 10 === 0) {
+      // Show interstitial ad after every 3 completed games
+      interstitial.load();
+      interstitial.addAdEventListener(AdEventType.LOADED, () => {
+        interstitial.show();
+      });
+    }
+  }, [completedGames]);
+
   return (
     <SafeAreaView>
+      <React.Fragment>
+        <StatusBar gameState={gameState} player={player()} />
 
+        <Grid gridElements={gridElements} onGridElementPress={handlePress} />
 
-    
-    <React.Fragment>
-      <StatusBar gameState={gameState} player={player()} />
-
-      <Grid gridElements={gridElements} onGridElementPress={handlePress} />
-
-      {isCompleted() && <Button onClick={replayGame} />}
-    </React.Fragment>
+        {isCompleted() && <Button onClick={replayGame} />}
+      </React.Fragment>
     </SafeAreaView>
   );
 };
